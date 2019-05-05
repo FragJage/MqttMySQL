@@ -155,7 +155,7 @@ void MqttMySQL::on_forward(const string& identifier, const string& topic, const 
     string value = message;
     m_DbMysql.Connect();
     CheckTable(name, topic);
-    if(!StringTools::IsNumber(value)) value = "\""+value+"\"";
+    //if(!StringTools::IsNumber(value)) value = "\""+value+"\"";
     LOG_VERBOSE(m_Log) << "Send to MySQL => " << name << " value=" << value;
     m_DbMysql.AddValue(name, value);
     m_DbMysql.Disconnect();
