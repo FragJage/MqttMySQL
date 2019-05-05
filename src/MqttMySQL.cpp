@@ -50,7 +50,10 @@ void MqttMySQL::DaemonConfigure(SimpleIni& iniFile)
             m_MySQLPort = iniFile.GetValue("mysql", "port", 3306);
             m_MySQLDb = iniFile.GetValue("mysql", "database", "");
             LOG_VERBOSE(m_Log) << "MySQL server " << m_MySQLServer << ":" << m_MySQLPort << ", database " << m_MySQLDb;
-            m_DbMysql.Init(m_MySQLServer, m_MySQLPort, m_MySQLDb, "", "");
+
+            string user = iniFile.GetValue("mysql", "user", "");
+            string pass = iniFile.GetValue("mysql", "password", "");
+            m_DbMysql.Init(m_MySQLServer, m_MySQLPort, m_MySQLDb, user, pass);
 
             string format  = iniFile.GetValue("mysql", "tablename", "sensorname");
             if(StringTools::IsEqualCaseInsensitive(format, "fullname"))
