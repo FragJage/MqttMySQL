@@ -69,7 +69,7 @@ bool DbMysql::AddValue(const string& table, const string& value)
     ostringstream str;
 
 
-    str << "INSERT INTO " << table;
+    str << "INSERT INTO `" << table << "`";
     str << " VALUES ('"<<toSQLDate()<<"', '"<<value<<"')";
 
     return Query(str.str());
@@ -88,7 +88,7 @@ bool DbMysql::CreateTable(const string& table, const string& type)
 {
     ostringstream str;
 
-    str << "CREATE TABLE " << table << " (time_sec timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, value " << type << " NOT NULL, PRIMARY KEY (time_sec)) ENGINE=InnoDB";
+    str << "CREATE TABLE `" << table << "` (time_sec timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, value " << type << " NOT NULL, PRIMARY KEY (time_sec)) ENGINE=InnoDB";
     return Query(str.str());
 }
 
