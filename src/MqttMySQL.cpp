@@ -33,6 +33,7 @@ void MqttMySQL::ConfigureFormat(SimpleIni& iniFile)
     {
         value = iniFile.GetValue("format", *itKey, "");
         m_TableFormat[*itKey] = value;
+        LOG_DEBUG(m_Log) << "Set format to " << value << " for topic " << *itKey;
     }
 }
 
@@ -84,7 +85,7 @@ void MqttMySQL::DaemonConfigure(SimpleIni& iniFile)
             continue;
         }
 
-        LOG_VERBOSE(m_Log) << "Rule " << name << " : Subscript to " << server << " topic " << topic;
+        LOG_VERBOSE(m_Log) << "Section " << name << " : Subscript to " << server << " topic " << topic;
         MqttBridge* pMqttBridge = new MqttBridge(name, server, topic, this);
         m_MqttClients.emplace_back(pMqttBridge);
     }
@@ -96,12 +97,14 @@ string MqttMySQL::SearchFormat(const string& topic)
 {
     string type = "float";
     map<string, string>::iterator it = m_TableFormat.find(topic);
+    LOG_DEBUG(m_Log) << "Search type for topic " << topic;
     if(it == m_TableFormat.end())
     {
         size_t pos = topic.find_last_of('/');
         if(pos != string::npos)
         {
             string generic = topic.substr(0, pos)+"#";
+            LOG_DEBUG(m_Log) << "Search type for topic " << generic;
             it = m_TableFormat.find(generic);
         }
     }
@@ -155,7 +158,6 @@ void MqttMySQL::on_forward(const string& identifier, const string& topic, const 
     string value = message;
     m_DbMysql.Connect();
     CheckTable(name, topic);
-    //if(!StringTools::IsNumber(value)) value = "\""+value+"\"";
     LOG_VERBOSE(m_Log) << "Send to MySQL => " << name << " value=" << value;
     m_DbMysql.AddValue(name, value);
     m_DbMysql.Disconnect();
