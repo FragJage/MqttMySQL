@@ -103,7 +103,7 @@ string MqttMySQL::SearchFormat(const string& topic)
         size_t pos = topic.find_last_of('/');
         if(pos != string::npos)
         {
-            string generic = topic.substr(0, pos)+"#";
+            string generic = topic.substr(0, pos+1)+"#";
             LOG_DEBUG(m_Log) << "Search type for topic " << generic;
             it = m_TableFormat.find(generic);
         }
@@ -141,7 +141,7 @@ void MqttMySQL::on_forward(const string& identifier, const string& topic, const 
 {
     if(m_bPause) return;
 
-    LOG_VERBOSE(m_Log) << "Mqtt receive for rule " << identifier << " : " << topic << " => " << message;
+    LOG_VERBOSE(m_Log) << "Mqtt receive for section " << identifier << " : " << topic << " => " << message;
 
     size_t pos;
     string name(topic);
