@@ -9,7 +9,7 @@
 
 using namespace std;
 
-MqttMySQL::MqttMySQL() : MqttDaemon("influx", "MqttMySQL")
+MqttMySQL::MqttMySQL() : MqttDaemon("mysql", "MqttMySQL")
 {
     m_FullName = false;
 }
@@ -139,8 +139,6 @@ void MqttMySQL::CheckTable(const string& table, const string& topic)
 
 void MqttMySQL::on_forward(const string& identifier, const string& topic, const string& message)
 {
-    if(m_bPause) return;
-
     LOG_VERBOSE(m_Log) << "Mqtt receive for section " << identifier << " : " << topic << " => " << message;
 
     size_t pos;
@@ -163,7 +161,7 @@ void MqttMySQL::on_forward(const string& identifier, const string& topic, const 
     m_DbMysql.Disconnect();
 }
 
-void MqttMySQL::on_message(const string& topic, const string& message)
+void MqttMySQL::IncomingMessage(const string& topic, const string& message)
 {
 	LOG_VERBOSE(m_Log) << "Mqtt receive " << topic << " : " << message;
 
@@ -193,25 +191,12 @@ int MqttMySQL::DaemonLoop(int argc, char* argv[])
 	LOG_VERBOSE(m_Log) << "Subscript to : " << GetMainTopic() + "command/#";
 
 	bool bStop = false;
-	m_bPause = false;
 	while(!bStop)
     {
-		int cond = Service::Get()->Wait();
-		if (cond == Service::STATUS_CHANGED)
-		{
-			switch (Service::Get()->GetStatus())
-			{
-                case Service::StatusKind::PAUSE:
-                    m_bPause = true;
-                    break;
-                case Service::StatusKind::START:
-                    m_bPause = false;
-                    break;
-                case Service::StatusKind::STOP:
-                    bStop = true;
-                    break;
-			}
-		}
+        if(WaitFor(250)==Service::STATUS_CHANGED)
+        {
+            if(Service::Get()->GetStatus() == Service::StatusKind::STOP) bStop = true;
+        }
     }
 
 	LOG_EXIT_OK;

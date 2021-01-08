@@ -15,11 +15,10 @@ class MqttMySQL : public MqttDaemon, public IForwardMessage
         ~MqttMySQL();
 
 		int DaemonLoop(int argc, char* argv[]);
-        void on_message(const std::string& topic, const std::string& message);
+        void IncomingMessage(const std::string& topic, const std::string& message);
         void on_forward(const std::string& identifier, const std::string& topic, const std::string& message);
 
     private:
-        bool m_bPause;
         std::string m_MySQLServer;
         int m_MySQLPort;
         std::string m_MySQLDb;
