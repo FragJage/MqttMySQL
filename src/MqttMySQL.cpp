@@ -1,5 +1,6 @@
 #include <iostream>
 #include <algorithm>
+#include <regex>
 #ifdef WIN32
 #include <WinSock2.h>		// To stop windows.h including winsock.h
 #endif
@@ -11,7 +12,6 @@ using namespace std;
 
 MqttMySQL::MqttMySQL() : MqttDaemon("mysql", "MqttMySQL")
 {
-    m_FullName = false;
 }
 
 MqttMySQL::~MqttMySQL()
@@ -25,26 +25,72 @@ MqttMySQL::~MqttMySQL()
     m_MqttClients.clear();
 }
 
-void MqttMySQL::ConfigureFormat(SimpleIni& iniFile)
+string MqttMySQL::ExtractFilter(string key)
 {
-    string value;
-
-    for (SimpleIni::KeyIterator itKey = iniFile.beginKey("format"); itKey != iniFile.endKey("format"); ++itKey)
+    size_t pos = key.find('(');
+    if(pos==string::npos) return "default";
+    if(key.back()!=')')
     {
-        value = iniFile.GetValue("format", *itKey, "");
-        m_TableFormat[*itKey] = value;
-        LOG_DEBUG(m_Log) << "Set format to " << value << " for topic " << *itKey;
+        LOG_WARNING(m_Log) << "Bad filter, missing ')' in : " << key;
+        return "";
     }
+    return key.substr(pos+1, key.length()-pos-2);
+}
+
+void MqttMySQL::CustomSectionConfigure(SimpleIni& iniFile, string sectionName)
+{
+    LOG_ENTER;
+
+    string key;
+    string value;
+    string filter;
+
+    string server = iniFile.GetValue(sectionName, "server", "");
+    string topic = iniFile.GetValue(sectionName, "topic", "");
+
+    if((server=="")||(topic==""))
+    {
+        LOG_WARNING(m_Log) << "Keywords server and topic are mandatory in section " << sectionName;
+        LOG_EXIT_KO;
+        return;
+    }
+
+    for (SimpleIni::KeyIterator itKey = iniFile.beginKey(sectionName); itKey != iniFile.endKey(sectionName); ++itKey)
+    {
+        key = (*itKey);
+        value = iniFile.GetValue(sectionName, key, "");
+        if(key == "server") continue;
+        if(key == "topic") continue;
+        if(key.substr(0, 6) == "format")
+        {
+            filter = ExtractFilter(key);
+            if(filter!="") m_Formats[sectionName][filter] = value;
+            continue;
+        }
+        if(key.substr(0, 5) == "table")
+        {
+            filter = ExtractFilter(key);
+            if(filter!="") m_TableNames[sectionName][filter] = value;
+            continue;
+        }
+    }
+
+    LOG_VERBOSE(m_Log) << "Section " << sectionName << " : Subscript to " << server << " topic " << topic;
+    MqttBridge* pMqttBridge = new MqttBridge(sectionName, server, topic, this);
+    m_MqttClients.emplace_back(pMqttBridge);
+
+	LOG_EXIT_OK;
 }
 
 void MqttMySQL::DaemonConfigure(SimpleIni& iniFile)
 {
     LOG_ENTER;
 
-	for (SimpleIni::SectionIterator itSection = iniFile.beginSection(); itSection != iniFile.endSection(); ++itSection)
+    for (SimpleIni::SectionIterator itSection = iniFile.beginSection(); itSection != iniFile.endSection(); ++itSection)
 	{
 		if ((*itSection) == "mqtt") continue;
 		if ((*itSection) == "log") continue;
+		if ((*itSection) == "mqttlog") continue;
 		if ((*itSection) == "mysql")
         {
             m_MySQLServer = iniFile.GetValue("mysql", "server", "127.0.0.1");
@@ -55,66 +101,15 @@ void MqttMySQL::DaemonConfigure(SimpleIni& iniFile)
             string user = iniFile.GetValue("mysql", "user", "");
             string pass = iniFile.GetValue("mysql", "password", "");
             m_DbMysql.Init(m_MySQLServer, m_MySQLPort, m_MySQLDb, user, pass);
-
-            string format  = iniFile.GetValue("mysql", "tablename", "sensorname");
-            if(StringTools::IsEqualCaseInsensitive(format, "fullname"))
-            {
-                m_FullName = true;
-                LOG_VERBOSE(m_Log) << "Table name is full sensor name.";
-            }
-            else
-            {
-                m_FullName = false;
-                LOG_VERBOSE(m_Log) << "Table name is sensor name.";
-            }
             continue;
         }
-		if ((*itSection) == "format")
-        {
-            ConfigureFormat(iniFile);
-            continue;
-        }
-
-        string name    = (*itSection);
-        string server  = iniFile.GetValue(name, "server", "");
-        string topic   = iniFile.GetValue(name, "topic", "");
-
-        if((server=="")||(topic==""))
-        {
-            LOG_WARNING(m_Log) << "Keywords server and topic are mandatory in section " << name;
-            continue;
-        }
-
-        LOG_VERBOSE(m_Log) << "Section " << name << " : Subscript to " << server << " topic " << topic;
-        MqttBridge* pMqttBridge = new MqttBridge(name, server, topic, this);
-        m_MqttClients.emplace_back(pMqttBridge);
+        CustomSectionConfigure(iniFile, *itSection);
     }
 
 	LOG_EXIT_OK;
 }
 
-string MqttMySQL::SearchFormat(const string& topic)
-{
-    string type = "float";
-    map<string, string>::iterator it = m_TableFormat.find(topic);
-    LOG_DEBUG(m_Log) << "Search type for topic " << topic;
-    if(it == m_TableFormat.end())
-    {
-        size_t pos = topic.find_last_of('/');
-        if(pos != string::npos)
-        {
-            string generic = topic.substr(0, pos+1)+"#";
-            LOG_DEBUG(m_Log) << "Search type for topic " << generic;
-            it = m_TableFormat.find(generic);
-        }
-    }
-    if(it != m_TableFormat.end()) type = it->second;
-
-    LOG_VERBOSE(m_Log) << "Found type " << type << " for topic " << topic;
-    return type;
-}
-
-void MqttMySQL::CheckTable(const string& table, const string& topic)
+void MqttMySQL::CheckTable(const string& table, const string& format)
 {
     if(m_TableExist.find(table) != m_TableExist.end()) return;
 
@@ -124,62 +119,85 @@ void MqttMySQL::CheckTable(const string& table, const string& topic)
         return;
     }
 
-    string type = SearchFormat(topic);
-
-    LOG_VERBOSE(m_Log) << "Create table " << table << " with type " << type;
-    if(m_DbMysql.CreateTable(table, type))
+    LOG_VERBOSE(m_Log) << "Create table " << table << " with type " << format;
+    if(m_DbMysql.CreateTable(table, format))
     {
         m_TableExist.insert(table);
     }
     else
     {
-        LOG_ERROR(m_Log) << "Unable to create table " << table << " with type " << type << " : " << m_DbMysql.GetLastError();
+        LOG_ERROR(m_Log) << "Unable to create table " << table << " with type " << format << " : " << m_DbMysql.GetLastError();
     }
+}
+
+string MqttMySQL::SearchMap(const map<string, string>& mapFilter, const string& topic)
+{
+    map<string, string>::const_iterator it = mapFilter.cbegin();
+    map<string, string>::const_iterator itEnd = mapFilter.cend();
+    while (it != itEnd)
+    {
+        regex filter(it->first);
+        if(regex_match(topic, filter))
+        {
+            LOG_VERBOSE(m_Log) << "Filter " << it->first << " match for topic " << topic << " : " << it->second;
+            return it->second;
+        }
+        it++;
+    }
+    it = mapFilter.find("default");
+    if (it == itEnd) return "";
+    LOG_VERBOSE(m_Log) << "Filter default found for topic " << topic << " : " << it->second;
+    return it->second;
+}
+
+string MqttMySQL::GetTableName(const string& identifier, const string& topic)
+{
+    string table = SearchMap(m_TableNames[identifier], topic);
+    if(table == "")
+    {
+        LOG_VERBOSE(m_Log) << "No filter found from "<< identifier << " for topic " << topic << " to identify table name";
+        return "";
+    }
+
+    if(table == "auto")
+    {
+        table = topic;
+        return StringTools::ReplaceAll(table, "/", "_");
+    }
+
+	if(table.find('#')==string::npos) return table;
+    string name(table);
+    vector<string> segs = StringTools::Split(topic, '/');
+    for(size_t i=0; i<segs.size(); i++) name = StringTools::ReplaceAll(name, "#"+to_string(i+1), segs[i]);
+    return name;
+}
+
+string MqttMySQL::GetTableFormat(const string& identifier, const string& topic)
+{
+    string format = SearchMap(m_Formats[identifier], topic);
+    if(format == "") format = "float";
+    return format;
 }
 
 void MqttMySQL::on_forward(const string& identifier, const string& topic, const string& message)
 {
     LOG_VERBOSE(m_Log) << "Mqtt receive for section " << identifier << " : " << topic << " => " << message;
 
-    size_t pos;
-    string name(topic);
-    if(m_FullName)
-    {
-        name = StringTools::ReplaceAll(name, "/", ".");
-    }
-    else
-    {
-        pos = name.find_last_of('/');
-        if(pos != string::npos) name = name.substr(pos+1);
-    }
+    string table = GetTableName(identifier, topic);
+    if(table == "") return;
+
+    string format = GetTableFormat(identifier, topic);
 
     string value = message;
     m_DbMysql.Connect();
-    CheckTable(name, topic);
-    LOG_VERBOSE(m_Log) << "Send to MySQL => " << name << " value=" << value;
-    m_DbMysql.AddValue(name, value);
+    CheckTable(table, format);
+    LOG_VERBOSE(m_Log) << "Send to MySQL => " << table << "(" << format << ") value=" << value;
+    m_DbMysql.AddValue(table, value);
     m_DbMysql.Disconnect();
 }
 
 void MqttMySQL::IncomingMessage(const string& topic, const string& message)
 {
-	LOG_VERBOSE(m_Log) << "Mqtt receive " << topic << " : " << message;
-
-	string mainTopic = GetMainTopic();
-	if (topic.substr(0, mainTopic.length()) != mainTopic)
-	{
-		LOG_WARNING(m_Log) << "Receive topic not for me (" << mainTopic << ")";
-		return;
-	}
-
-	if ( (topic.substr(mainTopic.length(), 7) != "command") ||(topic.length() != mainTopic.length() + 7) )
-	{
-		LOG_WARNING(m_Log) << "Receive topic but not a command (waiting " << mainTopic + "command" << ")";
-		return;
-	}
-
-	//TO DO service administration
-
 	return;
 }
 

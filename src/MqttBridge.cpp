@@ -2,7 +2,8 @@
 
 using namespace std;
 
-MqttBridge::MqttBridge(const string& identifier, const string& server, const string& topic, IForwardMessage* forwardCb) : m_Identifier(identifier), m_Callback(forwardCb)
+MqttBridge::MqttBridge(const string& identifier, const string& server, const string& topic, IForwardMessage* forwardCb) :
+    m_Identifier(identifier), m_Callback(forwardCb)
 {
 	SetServer(server, "");
 	Connect();

@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <set>
 #include <map>
 #include "MqttDaemon.h"
 #include "MqttBridge.h"
@@ -22,15 +23,18 @@ class MqttMySQL : public MqttDaemon, public IForwardMessage
         std::string m_MySQLServer;
         int m_MySQLPort;
         std::string m_MySQLDb;
-        bool m_FullName;
         std::vector<MqttBridge*> m_MqttClients;
-        std::map<std::string, std::string> m_TableFormat;
         std::set<std::string> m_TableExist;
         DbMysql m_DbMysql;
+        std::map<std::string, std::map<std::string, std::string>> m_Formats;
+        std::map<std::string, std::map<std::string, std::string>> m_TableNames;
 
 		void DaemonConfigure(SimpleIni& iniFile);
-		void ConfigureFormat(SimpleIni& iniFile);
+		void CustomSectionConfigure(SimpleIni& iniFile, std::string sectionName);
+		std::string ExtractFilter(std::string key);
 		void CheckTable(const std::string& table, const std::string& topic);
-		std::string SearchFormat(const std::string& topic);
+		std::string SearchMap(const std::map<std::string, std::string>& mapFilter, const std::string& topic);
+		std::string GetTableName(const std::string& identifier, const std::string& topic);
+		std::string GetTableFormat(const std::string& identifier, const std::string& topic);
 };
 #endif // MQTTMYSQL_H
