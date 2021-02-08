@@ -1,18 +1,25 @@
 [submodule "dependencies/SimpleIni"]
 	path = dependencies/SimpleIni
 	url = https://github.com/FragJage/SimpleIni
+	branch = main
 [submodule "dependencies/MqttDaemon"]
 	path = dependencies/MqttDaemon
 	url = https://github.com/FragJage/MqttDaemon
+	branch = main
 [submodule "dependencies/SimpleLog"]
 	path = dependencies/SimpleLog
 	url = https://github.com/FragJage/SimpleLog
+	branch = main
 [submodule "dependencies/SimpleFolder"]
 	path = dependencies/SimpleFolder
 	url = https://github.com/FragJage/SimpleFolder
+	branch = main
 [submodule "dependencies/ServiceSkeleton"]
 	path = dependencies/ServiceSkeleton
 	url = https://github.com/FragJage/ServiceSkeleton
+	branch = main
 [submodule "dependencies/FragFramework"]
 	path = dependencies/FragFramework
 	url = https://github.com/FragJage/FragFramework
+	branch = main
+
