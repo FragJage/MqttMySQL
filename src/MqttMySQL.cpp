@@ -12,6 +12,7 @@ using namespace std;
 
 MqttMySQL::MqttMySQL() : MqttDaemon("mysql", "MqttMySQL")
 {
+    m_DbMysql.SetLogger(m_Log);
 }
 
 MqttMySQL::~MqttMySQL()

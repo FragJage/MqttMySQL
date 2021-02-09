@@ -10,18 +10,25 @@ using namespace std;
 
 DbMysql::DbMysql()
 {
+    m_Log = nullptr;
     m_open = false;
 }
 
 DbMysql::DbMysql(const string& host, int port, const string& name, const string& user, const string& pwd)
 {
     Init(host, port, name, user, pwd);
+    m_Log = nullptr;
     m_open = false;
 }
 
 DbMysql::~DbMysql()
 {
     if(m_open) Disconnect();
+}
+
+void DbMysql::SetLogger(SimpleLog* log)
+{
+    m_Log = log;
 }
 
 void DbMysql::Init(const std::string& host, int port, const std::string& name, const std::string& user, const std::string& pwd)
@@ -51,7 +58,11 @@ bool DbMysql::Connect()
 	//Sélection de la base
 	if(ok) ok = (mysql_select_db(m_hCnx, m_name.c_str())==0);
 
-	if(!ok) m_lastError = string((char *)mysql_error(m_hCnx));
+	if(!ok)
+    {
+        m_lastError = string((char *)mysql_error(m_hCnx));
+        if(m_Log) LOG_ERROR(m_Log) << "Unable to connect to MySql : " << m_lastError;
+    }
 
 	m_open = ok;
     return ok;
@@ -120,6 +131,7 @@ unsigned long DbMysql::QueryCount(const string& query)
         close = true;
     }
 
+    if(m_Log) LOG_VERBOSE(m_Log) << "Execute SQL : " << query;
 	ret = mysql_query(m_hCnx, query.c_str());
 	if(ret==0)
 	{
@@ -133,12 +145,14 @@ unsigned long DbMysql::QueryCount(const string& query)
         {
             str << "Impossible d'obtenir les résultats de " <<query<< " : " <<mysql_error(m_hCnx);
             m_lastError = str.str();
+            if(m_Log) LOG_ERROR(m_Log) << m_lastError;
         }
 	}
 	else
     {
 	    str << "Echec de la requête " <<query<< " : " <<mysql_error(m_hCnx);
 		m_lastError = str.str();
+		if(m_Log) LOG_ERROR(m_Log) << m_lastError;
     }
 
 	if(close) Disconnect();
@@ -160,11 +174,13 @@ bool DbMysql::Query(const string& query)
         close = true;
     }
 
+    if(m_Log) LOG_VERBOSE(m_Log) << "Execute SQL : " << query;
 	ret = mysql_query(m_hCnx, query.c_str());
 	if(ret!=0)
 	{
 	    str << "Echec de la requête " <<query<< " : " <<mysql_error(m_hCnx);
 		m_lastError = str.str();
+		if(m_Log) LOG_ERROR(m_Log) << m_lastError;
 	}
 
 	if(close) Disconnect();

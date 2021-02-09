@@ -2,6 +2,7 @@
 #define DBMYSQL_H
 
 #include "mysql.h"
+#include "SimpleLog.h"
 
 class DbMysql
 {
@@ -11,6 +12,7 @@ class DbMysql
         ~DbMysql();
 
         void Init(const std::string& host, int port, const std::string& name, const std::string& user, const std::string& pwd);
+        void SetLogger(SimpleLog* log);
         bool Connect();
         void Disconnect();
         bool AddValue(const std::string& table, const std::string& value);
@@ -19,6 +21,7 @@ class DbMysql
         std::string GetLastError();
 
     private:
+        SimpleLog* m_Log;
         bool Query(const std::string& query);
         unsigned long QueryCount(const std::string& query);
         std::string toSQLDate(time_t time=0);
