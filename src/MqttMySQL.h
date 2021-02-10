@@ -9,6 +9,14 @@
 #include "MqttBridge.h"
 #include "DbMysql.h"
 
+struct MysqlQueue
+{
+    MysqlQueue(std::string table, std::string format, std::string value) : Table(table), Format(format), Value(value) {};
+    std::string Table;
+    std::string Format;
+    std::string Value;
+};
+
 class MqttMySQL : public MqttDaemon, public IForwardMessage
 {
     public:
@@ -36,5 +44,9 @@ class MqttMySQL : public MqttDaemon, public IForwardMessage
 		std::string SearchMap(const std::map<std::string, std::string>& mapFilter, const std::string& topic);
 		std::string GetTableName(const std::string& identifier, const std::string& topic);
 		std::string GetTableFormat(const std::string& identifier, const std::string& topic);
+		void SaveMysqlValues();
+
+        std::queue<MysqlQueue> m_MysqlQueue;
+		std::mutex m_MysqlQueueAccess;
 };
 #endif // MQTTMYSQL_H
