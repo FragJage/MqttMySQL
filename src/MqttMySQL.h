@@ -45,8 +45,5 @@ class MqttMySQL : public MqttDaemon, public IForwardMessage
 		std::string GetTableName(const std::string& identifier, const std::string& topic);
 		std::string GetTableFormat(const std::string& identifier, const std::string& topic);
 		void SaveMysqlValues();
-
-        std::queue<MysqlQueue> m_MysqlQueue;
-		std::mutex m_MysqlQueueAccess;
 };
 #endif // MQTTMYSQL_H

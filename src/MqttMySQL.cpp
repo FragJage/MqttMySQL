@@ -7,12 +7,10 @@
 #include "StringTools.h"
 #include "MqttMySQL.h"
 
-
 using namespace std;
 
 MqttMySQL::MqttMySQL() : MqttDaemon("mysql", "MqttMySQL")
 {
-    WithoutThread();
     m_DbMysql.SetLogger(m_Log);
 }
 
@@ -190,25 +188,13 @@ void MqttMySQL::on_forward(const string& identifier, const string& topic, const 
     string format = GetTableFormat(identifier, topic);
     string value = message;
 
-    lock_guard<mutex> lock(m_MysqlQueueAccess);
-    m_MysqlQueue.emplace(table, format, value);
+        m_DbMysql.Connect();
+        CheckTable(table, format);
+        LOG_VERBOSE(m_Log) << "Send to MySQL => " << table << "(" << format << ") value=" << value;
+        m_DbMysql.AddValue(table, value);
+        m_DbMysql.Disconnect();
 
     LOG_VERBOSE(m_Log) << "Exit on_forward";
-}
-
-void MqttMySQL::SaveMysqlValues()
-{
-	lock_guard<mutex> lock(m_MysqlQueueAccess);
-	while (!m_MysqlQueue.empty())
-	{
-		MysqlQueue& mysqlQueue = m_MysqlQueue.front();
-        m_DbMysql.Connect();
-        CheckTable(mysqlQueue.Table, mysqlQueue.Format);
-        LOG_VERBOSE(m_Log) << "Send to MySQL => " << mysqlQueue.Table << "(" << mysqlQueue.Format << ") value=" << mysqlQueue.Value;
-        m_DbMysql.AddValue(mysqlQueue.Table, mysqlQueue.Value);
-        m_DbMysql.Disconnect();
-		m_MysqlQueue.pop();
-	}
 }
 
 void MqttMySQL::IncomingMessage(const string& topic, const string& message)
@@ -231,7 +217,6 @@ int MqttMySQL::DaemonLoop(int argc, char* argv[])
         {
             if(Service::Get()->GetStatus() == Service::StatusKind::STOP) bStop = true;
         }
-        SaveMysqlValues();
     }
 
 	LOG_EXIT_OK;
