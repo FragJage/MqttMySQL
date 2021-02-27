@@ -13,8 +13,17 @@ MESSAGE(STATUS "Using bundled FindMySQL.cmake...")
 # Redistribution and use is allowed according to the terms of the BSD license.
 # For details see the accompanying COPYING-CMAKE-SCRIPTS file.
 
+message(STATUS "CMAKE_CROSSCOMPILE: ${CMAKE_CROSSCOMPILE}")
 
-IF(UNIX)
+IF(CMAKE_CROSSCOMPILE)
+	SET(MYSQL_INCLUDE_DIR "${CMAKE_FIND_ROOT_PATH}/usr/include/mysql")
+	SET(MYSQL_ADD_LIBRARY "${CMAKE_FIND_ROOT_PATH}/usr/lib/arm-linux-gnueabihf/mariadb18")
+	SET(MYSQL_LIBRARIES "mariadbclient")
+	SET(MYSQL_FOUND TRUE CACHE INTERNAL "MySQL found")
+	message(STATUS "Set MySQL for cross compile")
+ENDIF(CMAKE_CROSSCOMPILE)
+
+IF(UNIX AND NOT CMAKE_CROSSCOMPILE)
     SET(MYSQL_CONFIG_PREFER_PATH "$ENV{MYSQL_HOME}/bin" CACHE FILEPATH
 		"preferred path to MySQL (mysql_config)")
     FIND_PROGRAM(MYSQL_CONFIG mysql_config
@@ -40,10 +49,10 @@ IF(UNIX)
       SET(MYSQL_ADD_LIBRARY ${MY_TMP} CACHE FILEPATH INTERNAL)
     ENDIF(MYSQL_CONFIG)
 
-ELSE(UNIX)
+ELSE(UNIX AND NOT CMAKE_CROSSCOMPILE)
 	set(MYSQL_ADD_INCLUDE_DIR "c:/msys/local/include" CACHE FILEPATH INTERNAL)
     set(MYSQL_ADD_LIBRARY "c:/msys/local/lib" CACHE FILEPATH INTERNAL)
-ENDIF(UNIX)
+ENDIF(UNIX AND NOT CMAKE_CROSSCOMPILE)
 
 if (NOT MYSQL_FOUND)
 
