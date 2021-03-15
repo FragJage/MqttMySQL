@@ -94,11 +94,6 @@ add_executable(
 target_link_libraries(MqttMySQL paho-mqtt3a)
 target_link_libraries(MqttMySQL paho-mqttpp3)
 
-#Needed by MariaDbClient 18
-target_link_libraries(MqttMySQL dl)
-target_link_libraries(MqttMySQL rt)
-target_link_libraries(MqttMySQL z)
-
 target_link_libraries(MqttMySQL ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(MqttMySQL ${MYSQL_LIBRARIES})
 
